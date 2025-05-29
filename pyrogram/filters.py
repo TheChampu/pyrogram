@@ -18,11 +18,11 @@
 
 import inspect
 import re
-from typing import Callable, Union, List, Pattern
+from typing import Callable, Union, List, Pattern, Optional
 
 import pyrogram
 from pyrogram import enums
-from pyrogram.types import Message, CallbackQuery, InlineQuery, InlineKeyboardMarkup, ReplyKeyboardMarkup, Update
+from pyrogram.types import Message, CallbackQuery, InlineQuery, PreCheckoutQuery, InlineKeyboardMarkup, ReplyKeyboardMarkup, Update
 
 
 class Filter:
@@ -129,10 +129,10 @@ def create(func: Callable, name: str = None, **kwargs) -> Filter:
     Parameters:
         func (``Callable``):
             A function that accepts three positional arguments *(filter, client, update)* and returns a boolean: True if the
-            update should be handled, False otherwise. 
-            The *filter* argument refers to the filter itself and can be used to access keyword arguments (read below). 
+            update should be handled, False otherwise.
+            The *filter* argument refers to the filter itself and can be used to access keyword arguments (read below).
             The *client* argument refers to the :obj:`~pyrogram.Client` that received the update.
-            The *update* argument type will vary depending on which `Handler <handlers>`_ is coming from. 
+            The *update* argument type will vary depending on which `Handler <handlers>`_ is coming from.
             For example, in a :obj:`~pyrogram.handlers.MessageHandler` the *update* argument will be a :obj:`~pyrogram.types.Message`; in a :obj:`~pyrogram.handlers.CallbackQueryHandler` the *update* will be a :obj:`~pyrogram.types.CallbackQuery`.
             Your function body can then access the incoming update attributes and decide whether to allow it or not.
 
@@ -184,6 +184,17 @@ bot = create(bot_filter)
 
 # endregion
 
+# region sender_chat_filter
+async def sender_chat_filter(_, __, m: Message):
+    return bool(m.sender_chat)
+
+
+sender_chat = create(sender_chat_filter)
+"""Filter messages coming from sender chat."""
+
+
+# endregion
+
 # region incoming_filter
 async def incoming_filter(_, __, m: Message):
     return not m.outgoing
@@ -219,18 +230,18 @@ text = create(text_filter)
 
 # region reply_filter
 async def reply_filter(_, __, m: Message):
-    return bool(m.reply_to_message_id)
+    return bool(m.reply_to_message_id or m.reply_to_story_id)
 
 
 reply = create(reply_filter)
-"""Filter messages that are replies to other messages."""
+"""Filter messages that are replies to other messages or stories."""
 
 
 # endregion
 
 # region forwarded_filter
 async def forwarded_filter(_, __, m: Message):
-    return bool(m.forward_date)
+    return bool(m.forward_origin)
 
 
 forwarded = create(forwarded_filter)
@@ -250,6 +261,16 @@ caption = create(caption_filter)
 
 # endregion
 
+# region self_destruction_filter
+async def self_destruction_filter(_, __, m: Message):
+    return bool(m.media and getattr(getattr(m, m.media.value, None), "ttl_seconds", None))
+
+
+self_destruction = create(self_destruction_filter)
+"""Filter self-destruction media messages."""
+
+
+# endregion
 
 # region audio_filter
 async def audio_filter(_, __, m: Message):
@@ -313,6 +334,72 @@ async def game_filter(_, __, m: Message):
 
 game = create(game_filter)
 """Filter messages that contain :obj:`~pyrogram.types.Game` objects."""
+
+
+# endregion
+
+# region giveaway_filter
+async def giveaway_filter(_, __, m: Message):
+    return bool(m.giveaway)
+
+
+giveaway = create(giveaway_filter)
+"""Filter messages that contain :obj:`~pyrogram.types.Giveaway` objects."""
+
+
+# endregion
+
+# region giveaway_winners_filter
+async def giveaway_winners_filter(_, __, m: Message):
+    return bool(m.giveaway_winners)
+
+
+giveaway_winners = create(giveaway_winners_filter)
+"""Filter messages that contain :obj:`~pyrogram.types.GiveawayWinners` objects."""
+
+
+# endregion
+
+# region gift_code_filter
+async def gift_code_filter(_, __, m: Message):
+    return bool(m.gift_code)
+
+
+gift_code = create(gift_code_filter)
+"""Filter messages that contain :obj:`~pyrogram.types.GiftCode` objects."""
+
+
+# endregion
+
+# region gift_filter
+async def gift_filter(_, __, m: Message):
+    return bool(m.gift)
+
+
+gift = create(gift_filter)
+"""Filter messages that contain :obj:`~pyrogram.types.Gift` objects."""
+
+
+# endregion
+
+# region users_shared_filter
+async def users_shared_filter(_, __, m: Message):
+    return bool(m.users_shared)
+
+
+users_shared = create(users_shared_filter)
+"""Filter service messages for shared users."""
+
+
+# endregion
+
+# region chat_shared_filter
+async def chat_shared_filter(_, __, m: Message):
+    return bool(m.chat_shared)
+
+
+chat_shared = create(chat_shared_filter)
+"""Filter service messages for shared chat."""
 
 
 # endregion
@@ -427,6 +514,17 @@ dice = create(dice_filter)
 
 # endregion
 
+# region quote_filter
+async def quote_filter(_, __, m: Message):
+    return bool(m.quote)
+
+
+quote = create(quote_filter)
+"""Filter quote messages."""
+
+
+# endregion
+
 # region media_spoiler
 async def media_spoiler_filter(_, __, m: Message):
     return bool(m.has_media_spoiler)
@@ -467,6 +565,28 @@ async def channel_filter(_, __, m: Message):
 
 channel = create(channel_filter)
 """Filter messages sent in channels."""
+
+
+# endregion
+
+# region forum_filter
+async def forum_filter(_, __, m: Message):
+    return bool(m.chat and m.chat.is_forum)
+
+
+forum = create(forum_filter)
+"""Filter messages sent in forums."""
+
+
+# endregion
+
+# region story_filter
+async def story_filter(_, __, m: Message):
+    return bool(m.story)
+
+
+story = create(story_filter)
+"""Filter messages that contain :obj:`~pyrogram.types.Story` objects."""
 
 
 # endregion
@@ -647,6 +767,17 @@ via_bot = create(via_bot_filter)
 
 # endregion
 
+# region admin_filter
+async def admin_filter(_, __, m: Message):
+    return bool(m.chat and m.chat.is_admin)
+
+
+admin = create(admin_filter)
+"""Filter chats where you have admin rights"""
+
+
+# endregion
+
 # region video_chat_started_filter
 async def video_chat_started_filter(_, __, m: Message):
     return bool(m.video_chat_started)
@@ -669,6 +800,17 @@ video_chat_ended = create(video_chat_ended_filter)
 
 # endregion
 
+# region business
+async def business_filter(_, __, m: Message):
+    return bool(m.business_connection_id)
+
+
+business = create(business_filter)
+"""Filter messages sent via business bot"""
+
+
+# endregion
+
 # region video_chat_members_invited_filter
 async def video_chat_members_invited_filter(_, __, m: Message):
     return bool(m.video_chat_members_invited)
@@ -676,6 +818,17 @@ async def video_chat_members_invited_filter(_, __, m: Message):
 
 video_chat_members_invited = create(video_chat_members_invited_filter)
 """Filter messages for voice chat invited members"""
+
+
+# endregion
+
+# region successful_payment_filter
+async def successful_payment_filter(_, __, m: Message):
+    return bool(m.successful_payment)
+
+
+successful_payment = create(successful_payment_filter)
+"""Filter messages for successful payments"""
 
 
 # endregion
@@ -691,7 +844,7 @@ service = create(service_filter)
 A service message contains any of the following fields set: *left_chat_member*,
 *new_chat_title*, *new_chat_photo*, *delete_chat_photo*, *group_chat_created*, *supergroup_chat_created*,
 *channel_chat_created*, *migrate_to_chat_id*, *migrate_from_chat_id*, *pinned_message*, *game_score*,
-*video_chat_started*, *video_chat_ended*, *video_chat_members_invited*.
+*video_chat_started*, *video_chat_ended*, *video_chat_members_invited*, *successful_payment*.
 """
 
 
@@ -734,9 +887,24 @@ from_scheduled = create(from_scheduled_filter)
 
 # endregion
 
+# region paid_message_filter
+async def paid_message_filter(_, __, m: Message):
+    return bool(m.send_paid_messages_stars)
+
+
+paid_message = create(paid_message_filter)
+"""Filter paid messages."""
+
+
+# endregion
+
 # region linked_channel_filter
 async def linked_channel_filter(_, __, m: Message):
-    return bool(m.forward_from_chat and not m.from_user)
+    return bool(
+        m.forward_origin and
+        m.forward_origin.type == enums.MessageOriginType.CHANNEL and
+        m.forward_origin.chat == m.sender_chat
+    )
 
 
 linked_channel = create(linked_channel_filter)
@@ -829,6 +997,7 @@ def regex(pattern: Union[str, Pattern], flags: int = 0):
     - :obj:`~pyrogram.types.Message`: The filter will match ``text`` or ``caption``.
     - :obj:`~pyrogram.types.CallbackQuery`: The filter will match ``data``.
     - :obj:`~pyrogram.types.InlineQuery`: The filter will match ``query``.
+    - :obj:`~pyrogram.types.PreCheckoutQuery`: The filter will match ``payload``.
 
     When a pattern matches, all the `Match Objects <https://docs.python.org/3/library/re.html#match-objects>`_ are
     stored in the ``matches`` field of the update object itself.
@@ -848,6 +1017,8 @@ def regex(pattern: Union[str, Pattern], flags: int = 0):
             value = update.data
         elif isinstance(update, InlineQuery):
             value = update.query
+        elif isinstance(update, PreCheckoutQuery):
+            value = update.invoice_payload
         else:
             raise ValueError(f"Regex filter doesn't work with {type(update)}")
 
@@ -877,7 +1048,7 @@ class user(Filter, set):
             Defaults to None (no users).
     """
 
-    def __init__(self, users: Union[int, str, List[Union[int, str]]] = None):
+    def __init__(self, users: Optional[Union[int, str, List[Union[int, str]]]] = None):
         users = [] if users is None else users if isinstance(users, list) else [users]
 
         super().__init__(
@@ -909,7 +1080,7 @@ class chat(Filter, set):
             Defaults to None (no chats).
     """
 
-    def __init__(self, chats: Union[int, str, List[Union[int, str]]] = None):
+    def __init__(self, chats: Optional[Union[int, str, List[Union[int, str]]]] = None):
         chats = [] if chats is None else chats if isinstance(chats, list) else [chats]
 
         super().__init__(
@@ -927,3 +1098,27 @@ class chat(Filter, set):
                          and message.from_user
                          and message.from_user.is_self
                          and not message.outgoing)))
+
+
+# noinspection PyPep8Naming
+class topic(Filter, set):
+    """Filter messages coming from one or more topics.
+
+    You can use `set bound methods <https://docs.python.org/3/library/stdtypes.html#set>`_ to manipulate the
+    topics container.
+
+    Parameters:
+        topics (``int`` | ``list``):
+            Pass one or more topic ids to filter messages in specific topics.
+            Defaults to None (no topics).
+    """
+
+    def __init__(self, topics: Optional[Union[int, List[int]]] = None):
+        topics = [] if topics is None else topics if isinstance(topics, list) else [topics]
+
+        super().__init__(
+            t for t in topics
+        )
+
+    async def __call__(self, _, message: Message):
+        return message.topic and message.topic.id in self

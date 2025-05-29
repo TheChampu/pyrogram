@@ -29,8 +29,11 @@ class SearchGlobal:
         self: "pyrogram.Client",
         query: str = "",
         filter: "enums.MessagesFilter" = enums.MessagesFilter.EMPTY,
+        channels_only: Optional[bool] = None,
+        groups_only: Optional[bool] = None,
+        users_only: Optional[bool] = None,
         limit: int = 0,
-    ) -> Optional[AsyncGenerator["types.Message", None]]:
+    ) -> AsyncGenerator["types.Message", None]:
         """Search messages globally from all of your chats.
 
         If you want to get the messages count only, see :meth:`~pyrogram.Client.search_global_count`.
@@ -46,7 +49,7 @@ class SearchGlobal:
             query (``str``, *optional*):
                 Text query string.
                 Use "@" to search for mentions.
-            
+
             filter (:obj:`~pyrogram.enums.MessagesFilter`, *optional*):
                 Pass a filter in order to search for specific kind of messages only.
                 Defaults to any message (no filter).
@@ -54,6 +57,15 @@ class SearchGlobal:
             limit (``int``, *optional*):
                 Limits the number of messages to be retrieved.
                 By default, no limit is applied and all messages are returned.
+
+            channels_only (``bool``, *optional*):
+                Pass True to search only in channels.
+
+            groups_only (``bool``, *optional*):
+                Pass True to search only in groups.
+
+            users_only (``bool``, *optional*):
+                Pass True to search only in users.
 
         Returns:
             ``Generator``: A generator yielding :obj:`~pyrogram.types.Message` objects.
@@ -92,6 +104,9 @@ class SearchGlobal:
                         offset_rate=offset_date,
                         offset_peer=offset_peer,
                         offset_id=offset_id,
+                        broadcasts_only=channels_only,
+                        groups_only=groups_only,
+                        users_only=users_only,
                         limit=limit
                     ),
                     sleep_threshold=60

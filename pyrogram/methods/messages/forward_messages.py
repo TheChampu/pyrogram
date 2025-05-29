@@ -30,9 +30,15 @@ class ForwardMessages:
         chat_id: Union[int, str],
         from_chat_id: Union[int, str],
         message_ids: Union[int, Iterable[int]],
+        message_thread_id: int = None,
         disable_notification: bool = None,
         schedule_date: datetime = None,
-        protect_content: bool = None
+        hide_sender_name: bool = None,
+        hide_captions: bool = None,
+        protect_content: bool = None,
+        allow_paid_broadcast: bool = None,
+        video_start_timestamp: int = None,
+        paid_message_star_count: int = None
     ) -> Union["types.Message", List["types.Message"]]:
         """Forward messages of any kind.
 
@@ -52,6 +58,10 @@ class ForwardMessages:
             message_ids (``int`` | Iterable of ``int``):
                 An iterable of message identifiers in the chat specified in *from_chat_id* or a single message id.
 
+            message_thread_id (``int``, *optional*):
+                Unique identifier of a message thread to which the message belongs.
+                For supergroups only.
+
             disable_notification (``bool``, *optional*):
                 Sends the message silently.
                 Users will receive a notification with no sound.
@@ -59,8 +69,26 @@ class ForwardMessages:
             schedule_date (:py:obj:`~datetime.datetime`, *optional*):
                 Date when the message will be automatically sent.
 
+            hide_sender_name (``bool``, *optional*):
+                If True, the original author of the message will not be shown.
+
+            hide_captions (``bool``, *optional*):
+                If True, the original media captions will be removed.
+
             protect_content (``bool``, *optional*):
                 Protects the contents of the sent message from forwarding and saving.
+
+            allow_paid_broadcast (``bool``, *optional*):
+                If True, you will be allowed to send up to 1000 messages per second.
+                Ignoring broadcasting limits for a fee of 0.1 Telegram Stars per message.
+                The relevant Stars will be withdrawn from the bot's balance.
+                For bots only.
+
+            video_start_timestamp (``int``, *optional*):
+                Video startpoint, in seconds.
+
+            paid_message_star_count (``int``, *optional*):
+                The number of Telegram Stars the user agreed to pay to send the messages.
 
         Returns:
             :obj:`~pyrogram.types.Message` | List of :obj:`~pyrogram.types.Message`: In case *message_ids* was not
@@ -75,7 +103,6 @@ class ForwardMessages:
                 # Forward multiple messages at once
                 await app.forward_messages(to_chat, from_chat, [1, 2, 3])
         """
-
         is_iterable = not isinstance(message_ids, int)
         message_ids = list(message_ids) if is_iterable else [message_ids]
 
@@ -87,24 +114,16 @@ class ForwardMessages:
                 silent=disable_notification or None,
                 random_id=[self.rnd_id() for _ in message_ids],
                 schedule_date=utils.datetime_to_timestamp(schedule_date),
-                noforwards=protect_content
+                drop_author=hide_sender_name,
+                drop_media_captions=hide_captions,
+                noforwards=protect_content,
+                allow_paid_floodskip=allow_paid_broadcast,
+                top_msg_id=message_thread_id,
+                video_timestamp=video_start_timestamp,
+                allow_paid_stars=paid_message_star_count
             )
         )
 
-        forwarded_messages = []
+        messages = await utils.parse_messages(client=self, messages=r)
 
-        users = {i.id: i for i in r.users}
-        chats = {i.id: i for i in r.chats}
-
-        for i in r.updates:
-            if isinstance(i, (raw.types.UpdateNewMessage,
-                              raw.types.UpdateNewChannelMessage,
-                              raw.types.UpdateNewScheduledMessage)):
-                forwarded_messages.append(
-                    await types.Message._parse(
-                        self, i.message,
-                        users, chats
-                    )
-                )
-
-        return types.List(forwarded_messages) if is_iterable else forwarded_messages[0]
+        return messages if is_iterable else messages[0] if messages else None

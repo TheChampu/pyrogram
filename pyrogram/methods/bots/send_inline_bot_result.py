@@ -16,11 +16,14 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with Pyrogram.  If not, see <http://www.gnu.org/licenses/>.
 
-from typing import Union
+import logging
+from datetime import datetime
+from typing import List, Optional, Union
 
 import pyrogram
-from pyrogram import raw
+from pyrogram import enums, raw, types, utils
 
+log = logging.getLogger(__name__)
 
 class SendInlineBotResult:
     async def send_inline_bot_result(
@@ -28,9 +31,20 @@ class SendInlineBotResult:
         chat_id: Union[int, str],
         query_id: int,
         result_id: str,
-        disable_notification: bool = None,
-        reply_to_message_id: int = None
-    ) -> "raw.base.Updates":
+        disable_notification: Optional[bool] = None,
+        message_thread_id: Optional[int] = None,
+        reply_parameters: Optional["types.ReplyParameters"] = None,
+        paid_message_star_count: int = None,
+        schedule_date: datetime = None,
+
+        reply_to_message_id: Optional[int] = None,
+        reply_to_chat_id: Union[int, str] = None,
+        reply_to_story_id: Optional[int] = None,
+        quote_text: Optional[str] = None,
+        parse_mode: Optional["enums.ParseMode"] = None,
+        quote_entities: Optional[List["types.MessageEntity"]] = None,
+        quote_offset: Optional[int] = None,
+    ) -> "types.Message":
         """Send an inline bot result.
         Bot results can be retrieved using :meth:`~pyrogram.Client.get_inline_bot_results`
 
@@ -52,24 +66,100 @@ class SendInlineBotResult:
                 Sends the message silently.
                 Users will receive a notification with no sound.
 
-            reply_to_message_id (``bool``, *optional*):
-                If the message is a reply, ID of the original message.
+            message_thread_id (``int``, *optional*):
+                Unique identifier of a message thread to which the message belongs.
+                For supergroups only.
+
+            reply_parameters (:obj:`~pyrogram.types.ReplyParameters`, *optional*):
+                Describes reply parameters for the message that is being sent.
+
+            schedule_date (:py:obj:`~datetime.datetime`, *optional*):
+                Date when the message will be automatically sent.
+
+            paid_message_star_count (``int``, *optional*):
+                The number of Telegram Stars the user agreed to pay to send the messages.
 
         Returns:
-            :obj:`~pyrogram.raw.base.Updates`: Currently, on success, a raw result is returned.
+            :obj:`~pyrogram.types.Message`: On success, the sent message is returned or False if no message was sent.
 
         Example:
             .. code-block:: python
 
                 await app.send_inline_bot_result(chat_id, query_id, result_id)
         """
-        return await self.invoke(
+        if any(
+            (
+                reply_to_message_id is not None,
+                reply_to_chat_id is not None,
+                reply_to_story_id is not None,
+                quote_text is not None,
+                parse_mode is not None,
+                quote_entities is not None,
+                quote_offset is not None,
+            )
+        ):
+            if reply_to_message_id is not None:
+                log.warning(
+                    "`reply_to_message_id` is deprecated and will be removed in future updates. Use `reply_parameters` instead."
+                )
+
+            if reply_to_chat_id is not None:
+                log.warning(
+                    "`reply_to_chat_id` is deprecated and will be removed in future updates. Use `reply_parameters` instead."
+                )
+
+            if reply_to_story_id is not None:
+                log.warning(
+                    "`reply_to_story_id` is deprecated and will be removed in future updates. Use `reply_parameters` instead."
+                )
+
+            if quote_text is not None:
+                log.warning(
+                    "`quote_text` is deprecated and will be removed in future updates. Use `reply_parameters` instead."
+                )
+
+            if parse_mode is not None:
+                log.warning(
+                    "`parse_mode` is deprecated and will be removed in future updates. Use `reply_parameters` instead."
+                )
+
+            if quote_entities is not None:
+                log.warning(
+                    "`quote_entities` is deprecated and will be removed in future updates. Use `reply_parameters` instead."
+                )
+
+            if quote_offset is not None:
+                log.warning(
+                    "`quote_offset` is deprecated and will be removed in future updates. Use `reply_parameters` instead."
+                )
+
+            reply_parameters = types.ReplyParameters(
+                message_id=reply_to_message_id,
+                chat_id=reply_to_chat_id,
+                story_id=reply_to_story_id,
+                quote=quote_text,
+                quote_parse_mode=parse_mode,
+                quote_entities=quote_entities,
+                quote_position=quote_offset
+            )
+
+        r = await self.invoke(
             raw.functions.messages.SendInlineBotResult(
                 peer=await self.resolve_peer(chat_id),
                 query_id=query_id,
                 id=result_id,
                 random_id=self.rnd_id(),
                 silent=disable_notification or None,
-                reply_to_msg_id=reply_to_message_id
+                reply_to=await utils.get_reply_to(
+                    self,
+                    reply_parameters,
+                    message_thread_id
+                ),
+                schedule_date=utils.datetime_to_timestamp(schedule_date),
+                allow_paid_stars=paid_message_star_count
             )
         )
+
+        messages = await utils.parse_messages(client=self, messages=r)
+
+        return messages[0] if messages else None

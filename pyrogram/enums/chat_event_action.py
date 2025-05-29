@@ -123,5 +123,18 @@ class ChatEventAction(AutoName):
     MESSAGE_UNPINNED = auto()
     "a message has been unpinned (see ``unpinned_message``)"
 
+    MESSAGE_PIN_CHANGED = auto()
+    "a message has been pinned or unpinned but actual message is not received"
+    "should never be used in end-user code, only for correct parsing"
+
+    CREATED_FORUM_TOPIC = auto()
+    "a new forum topic has been created (see `created_forum_topic`)"
+
+    EDITED_FORUM_TOPIC = auto()
+    "a forum topic has been edited (see `old_forum_topic` and `new_forum_topic`)"
+
+    DELETED_FORUM_TOPIC = auto()
+    "a forum topic has been deleted (see `deleted_forum_topic`)"
+
     UNKNOWN = auto()
     "Unknown chat event action"
